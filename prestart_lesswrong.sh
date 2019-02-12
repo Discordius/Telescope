@@ -23,6 +23,15 @@ elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
     # GNU/Linux platform
     echo "🌋  ${bold}${purple}Good news you are on  GNU/Linux platform and we will install Meteor now! ${reset}";
     curl https://install.meteor.com/ | bash;
+    lsb_release -a
+    if ! which mongo >/dev/null; then
+      if which apt-get >/dev/null; then
+        apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 9DA31620334BD75D9DCB49F368818C72E52529D4
+        uname -a
+        echo "deb [ arch=amd64 ] https://repo.mongodb.org/apt/ubuntu bionic/mongodb-org/4.0 multiverse" | tee /etc/apt/sources.list.d/mongodb-org-4.0.list
+        apt-get install mongodb-org
+      fi
+    fi
 elif [ "$(expr substr $(uname -s) 1 10)" == "MINGW32_NT" ]; then
     # Windows NT platform
     echo "🌋  ${bold}${purple}Oh no! you are on a Windows platform and you will need to install Meteor Manually! ${reset}";
@@ -32,6 +41,13 @@ fi
 
 }
 
+if [ ! -d ../Vulcan ]; then
+  (
+    cd ..
+    echo "Checkout Vulcan in $PWD/Vulcan"
+    git clone https://github.com/Lesswrong2/Vulcan
+  )
+fi
 
 test -f settings.json || (echo "🛠  ${blue}Creating your own settings.json file...\n"; cp sample_settings.json settings.json;)
 
