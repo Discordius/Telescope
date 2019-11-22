@@ -16,9 +16,15 @@ import Head from './components/Head';
 import ApolloState from './components/ApolloState';
 import AppGenerator from './components/AppGenerator';
 import Sentry from '@sentry/node';
+import { Readable } from 'stream';
 
 const makePageRenderer = async sink => {
   const req = sink.request;
+  
+  deferredRender(sink, () => getRenderPromise(req));
+};
+
+const getRenderPromise = async (req) => {
   const user = await getUserFromReq(req);
   
   if (user) {
@@ -26,13 +32,13 @@ const makePageRenderer = async sink => {
     recordCacheBypass();
     //eslint-disable-next-line no-console
     console.log(`Rendering ${req.url} (logged in request; hit rate=${getCacheHitRate()})`);
-    const rendered = await renderRequest(req, user);
-    sendToSink(sink, rendered);
+    const renderPromise = renderRequest(req, user);
+    return renderPromise;
   } else {
-    const rendered = await cachedPageRender(req, (req) => renderRequest(req, null));
-    sendToSink(sink, rendered);
+    const renderPromise = cachedPageRender(req, (req) => renderRequest(req, null));
+    return renderPromise;
   }
-};
+}
 
 const renderRequest = async (req, user) => {
   const startTime = new Date();
@@ -63,25 +69,25 @@ const renderRequest = async (req, user) => {
 
   let htmlContent = '';
   // LESSWRONG: Split a call to renderToStringWithData into getDataFromTree
-    // followed by ReactDOM.renderToString, then pass a context variable
-    // isGetDataFromTree to only the getDataFromTree call. This is to enable
-    // a hack in packages/lesswrong/server/material-ui/themeProvider.js.
-    //
-    // In getDataFromTree, the order in which components are rendered is
-    // complicated and depends on what HoCs they have and the order in which
-    // results come back from the database; whereas in
-    // ReactDOM.renderToString, the render order is simply an inorder
-    // traversal of the resulting virtual DOM. When the client rehydrates the
-    // SSR, it traverses inorder, like renderToString did.
-    //
-    // Ordinarily the render order wouldn't matter, except that material-UI
-    // JSS stylesheet generation happens on first render, and it generates
-    // some class names which contain an iterating counter, which needs to
-    // match between client and server.
-    //
-    // So the hacky solution is: when rendering for getDataFromTree, we pass
-    // a context variable isGetDataFromTree, and if that's present and true,
-    // we suppress JSS style generation.
+  // followed by ReactDOM.renderToString, then pass a context variable
+  // isGetDataFromTree to only the getDataFromTree call. This is to enable
+  // a hack in packages/lesswrong/server/material-ui/themeProvider.js.
+  //
+  // In getDataFromTree, the order in which components are rendered is
+  // complicated and depends on what HoCs they have and the order in which
+  // results come back from the database; whereas in
+  // ReactDOM.renderToString, the render order is simply an inorder
+  // traversal of the resulting virtual DOM. When the client rehydrates the
+  // SSR, it traverses inorder, like renderToString did.
+  //
+  // Ordinarily the render order wouldn't matter, except that material-UI
+  // JSS stylesheet generation happens on first render, and it generates
+  // some class names which contain an iterating counter, which needs to
+  // match between client and server.
+  //
+  // So the hacky solution is: when rendering for getDataFromTree, we pass
+  // a context variable isGetDataFromTree, and if that's present and true,
+  // we suppress JSS style generation.
   try {
     await getDataFromTree(WrappedApp, {isGetDataFromTree: true});
   } catch(err) {
@@ -133,21 +139,44 @@ const renderRequest = async (req, user) => {
   };
 }
 
-const sendToSink = (sink, {
-  ssrBody, head, serializedApolloState, jssSheets,
-  status, redirectUrl,
-}) => {
-  if (status) {
-    sink.setStatusCode(status);
+// Put a set of streams (head, SSR body, apollo state, and JSS sheets) into
+// the template, and defer starting rendering until one of those streams is
+// pulled from. This solves a priority-inversion problem where otherwise we
+// would be rendering the page, instead of serving its header.
+const deferredRender = async (sink, getRenderPromise) => {
+  let renderStarted = false;
+  
+  const startRendering = () => {
+    getRenderPromise().then(rendered => {
+      pushAndClose(headStream, rendered.head);
+      pushAndClose(ssrBodyStream, rendered.ssrBody);
+      pushAndClose(apolloStateStream, rendered.serializedApolloState);
+      pushAndClose(jssSheetsStream, rendered.jssSheets);
+    });
+    renderStarted = true;
   }
-  if (redirectUrl) {
-    sink.redirect(redirectUrl, status||301);
+  const pushableStream = () => new Readable({
+    read(length) {
+      if (!renderStarted) {
+        startRendering();
+      }
+    }
+  });
+  
+  const pushAndClose = (stream, content) => {
+    stream.push(content);
+    stream.push(null);
   }
   
-  sink.appendToBody(ssrBody);
-  sink.appendToHead(head);
-  sink.appendToBody(serializedApolloState);
-  sink.appendToHead(jssSheets);
+  const headStream = pushableStream();
+  const ssrBodyStream = pushableStream();
+  const apolloStateStream = pushableStream();
+  const jssSheetsStream = pushableStream();
+  
+  sink.appendToHead(headStream);
+  sink.appendToBody(ssrBodyStream);
+  sink.appendToBody(apolloStateStream);
+  sink.appendToHead(jssSheetsStream);
 }
 
 export default makePageRenderer;
