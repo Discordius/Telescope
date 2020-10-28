@@ -1,18 +1,14 @@
 import { Utils, addCallback, Connectors } from '../vulcan-lib';
 import { sanitize } from '../vulcan-lib/utils';
 import { randomId } from '../../lib/random';
-import { convertFromRaw } from 'draft-js';
-import { draftToHTML } from '../draftConvert';
+import { getDraftToHTML } from '../draftConvert';
 import { Revisions, ChangeMetrics } from '../../lib/collections/revisions/collection'
 import { extractVersionsFromSemver } from '../../lib/editor/utils'
 import { ensureIndex } from '../../lib/collectionUtils'
 import { htmlToPingbacks } from '../pingbacks';
 import Sentry from '@sentry/node';
 import { diff } from '../vendor/node-htmldiff/htmldiff';
-import TurndownService from 'turndown';
-const turndownService = new TurndownService()
 import * as _ from 'underscore';
-turndownService.remove('style') // Make sure we don't add the content of style tags to the markdown
 
 import markdownIt from 'markdown-it'
 import markdownItMathjax from './markdown-mathjax'
@@ -26,8 +22,6 @@ mdi.use(markdownItMathjax())
 mdi.use(markdownItContainer, 'spoiler')
 mdi.use(markdownItFootnote)
 mdi.use(markdownItSub)
-
-import { mjpage }  from 'mathjax-node-page'
 
 function mjPagePromise(html: string, beforeSerializationCallback): Promise<string> {
   // Takes in HTML and replaces LaTeX with CommonHTML snippets
@@ -55,6 +49,7 @@ function mjPagePromise(html: string, beforeSerializationCallback): Promise<strin
       return beforeSerializationCallback(...args);
     };
     
+    const { mjpage } = require("mathjax-node-page");
     mjpage(html, { fragment: true, errorHandler, format: ["MathML", "TeX"] } , {html: true, css: true}, resolve)
       .on('beforeSerialization', callbackAndMarkFinished);
   })
@@ -151,18 +146,29 @@ const isEmptyParagraphOrBreak = (elem) => {
 
 export async function draftJSToHtmlWithLatex(draftJS) {
   const draftJSWithLatex = await Utils.preProcessLatex(draftJS)
-  const html = draftToHTML(convertFromRaw(draftJSWithLatex))
+  const convertFromRaw = require("draft-js").convertFromRaw;
+  const html = getDraftToHTML()(convertFromRaw(draftJSWithLatex))
   const trimmedHtml = trimLeadingAndTrailingWhiteSpace(html)
   return wrapSpoilerTags(trimmedHtml)
 }
 
+let turndownService: any = null;
+function getTurndownService() {
+  if (!turndownService) {
+    const TurndownService = require('turndown');
+    turndownService = new TurndownService()
+    turndownService.remove('style') // Make sure we don't add the content of style tags to the markdown
+  }
+  return turndownService;
+}
+
 export function htmlToMarkdown(html) {
-  return turndownService.turndown(html)
+  return getTurndownService().turndown(html)
 }
 
 export function ckEditorMarkupToMarkdown(markup) {
   // Sanitized CKEditor markup is just html
-  return turndownService.turndown(sanitize(markup))
+  return getTurndownService().turndown(sanitize(markup))
 }
 
 export function markdownToHtmlNoLaTeX(markdown: string): string {
@@ -228,8 +234,9 @@ export function dataToMarkdown(data, type) {
     }
     case "draftJS": {
       try {
+        const convertFromRaw = require("draft-js").convertFromRaw;
         const contentState = convertFromRaw(data);
-        const html = draftToHTML(contentState)
+        const html = getDraftToHTML()(contentState)
         return htmlToMarkdown(html)  
       } catch(e) {
         // eslint-disable-next-line no-console

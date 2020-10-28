@@ -4,6 +4,8 @@ import { publicSettings, initializeSetting, registeredSettings } from '../lib/pu
 import groupBy from 'lodash/groupBy';
 import get from 'lodash/get'
 import { ensureIndex } from '../lib/collectionUtils';
+import { assertDatabaseId } from './startupSanityChecks';
+import * as _ from 'underscore';
 
 let serverSettingsCache:Record<string, any> = {}
 const runValidateSettings = false
@@ -16,8 +18,14 @@ ensureIndex(DatabaseMetadata, {
 function refreshSettingsCaches() {
   // Note: This is using Fibers to make this database call synchronous. This is kind of bad, but I don't know how to avoid it 
   // without doing tons of work to make everything work properly in an asynchronous context
-  const serverSettingsObject = DatabaseMetadata.findOne({name: "serverSettings"})
-  const publicSettingsObject  = DatabaseMetadata.findOne({name: "publicSettings"})
+  const databaseSettingsObjects = DatabaseMetadata.find({name: {$in: ["serverSettings", "publicSettings", "databaseId"]}}).fetch();
+  const serverSettingsObject = _.find(databaseSettingsObjects, s=>s.name==="serverSettings");
+  const publicSettingsObject = _.find(databaseSettingsObjects, s=>s.name==="publicSettings");
+  const databaseIdObject = _.find(databaseSettingsObjects, s=>s.name==="databaseId");
+  if (!serverSettingsObject || !publicSettingsObject) {
+    // eslint-disable-next-line no-console
+    console.log("Settings not found");
+  }
   
   serverSettingsCache = serverSettingsObject?.value || {__initialized: true}
   // We modify the publicSettings object that is made available in lib to allow both the client and the server to access it
@@ -26,6 +34,8 @@ function refreshSettingsCaches() {
     // On development we validate the settings files, but wait 30 seconds to make sure that everything has really been loaded
     setTimeout(() => validateSettings(registeredSettings, publicSettings, serverSettingsCache), 30000)
   }
+  
+  assertDatabaseId(databaseIdObject);
 }
 
 refreshSettingsCaches()

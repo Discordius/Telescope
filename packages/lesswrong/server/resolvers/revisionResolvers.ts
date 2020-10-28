@@ -1,10 +1,8 @@
 import Revisions from '../../lib/collections/revisions/collection'
-import { htmlToDraft } from '../draftConvert';
-import { convertToRaw } from 'draft-js';
+import { getHtmlToDraft } from '../draftConvert';
 import { markdownToHtmlNoLaTeX, dataToMarkdown } from '../editor/make_editable_callbacks'
 import { highlightFromHTML, truncate } from '../../lib/editor/ellipsize';
 import { addFieldsDict } from '../../lib/utils/schemaUtils'
-import { JSDOM } from 'jsdom'
 import { sanitize, sanitizeAllowedTags } from '../vulcan-lib/utils';
 import htmlToText from 'html-to-text'
 import sanitizeHtml from 'sanitize-html';
@@ -14,6 +12,7 @@ const PLAINTEXT_HTML_TRUNCATION_LENGTH = 4000
 const PLAINTEXT_DESCRIPTION_LENGTH = 2000
 
 function domBuilder(html) {
+  const { JSDOM } = require('jsdom');
   const jsdom = new JSDOM(html)
   const document = jsdom.window.document;
   const bodyEl = document.body; // implicitly created
@@ -23,12 +22,13 @@ function domBuilder(html) {
 
 export function htmlToDraftServer(...args) {
   // We have to add this type definition to the global object to allow draft-convert to properly work on the server
+  const { JSDOM } = require('jsdom');
   const jsdom = new JSDOM();
   const globalHTMLElement = jsdom.window.HTMLElement;
   (global as any).HTMLElement = globalHTMLElement;
   // And alas, it looks like we have to add this global. This seems quite bad, and I am not fully sure what to do about it.
   (global as any).document = jsdom.window.document
-  const result = htmlToDraft(...args)
+  const result = getHtmlToDraft()(...args)
   // We do however at least remove it right afterwards
   delete (global as any).document
   delete (global as any).HTMLElement
@@ -37,6 +37,7 @@ export function htmlToDraftServer(...args) {
 
 export function dataToDraftJS(data, type) {
   if (data===undefined || data===null) return null;
+  const { convertToRaw } = require("draft-js");
 
   switch (type) {
     case "draftJS": {
