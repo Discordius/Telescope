@@ -23,6 +23,7 @@ import { getPublicSettings, getPublicSettingsLoaded } from '../../../lib/setting
 import { getMergedStylesheet } from '../../styleGeneration';
 import { ServerRequestStatusContextType } from '../../../lib/vulcan-core/appContext';
 import { getCookieFromReq, getPathFromReq } from '../../utils/httpUtil';
+import { isValidSerializedThemeOptions, ThemeOptions } from '../../../themes/themeNames';
 import type { Request, Response } from 'express';
 
 type RenderTimings = {
@@ -40,6 +41,7 @@ export type RenderResult = {
   redirectUrl: string|undefined
   relevantAbTestGroups: RelevantTestGroupAllocation
   allAbTestGroups: CompleteTestGroupAllocation
+  themeOptions: ThemeOptions,
   timings: RenderTimings
 }
 
@@ -157,7 +159,10 @@ export const renderRequest = async ({req, user, startTime, res, clientId}: {
     abTestGroupsUsed={abTestGroups}
   />;
 
-  const WrappedApp = wrapWithMuiTheme(App, context);
+  const serializedThemeOptions = (user?.theme && isValidSerializedThemeOptions(user.theme)) ? user.theme : '{"name":"default"}';
+  const themeOptions = JSON.parse(serializedThemeOptions) as ThemeOptions
+
+  const WrappedApp = wrapWithMuiTheme(App, context, themeOptions);
   
   let htmlContent = '';
   try {
@@ -184,7 +189,7 @@ export const renderRequest = async ({req, user, startTime, res, clientId}: {
   const sheetsRegistry = context.sheetsRegistry;
   const jssSheets = `<style id="jss-server-side">${sheetsRegistry.toString()}</style>`
     +'<style id="jss-insertion-point"></style>'
-    +`<link rel="stylesheet" onerror="window.missingMainStylesheet=true" href="${getMergedStylesheet().url}">`
+    +`<link rel="stylesheet" onerror="window.missingMainStylesheet=true" href="${getMergedStylesheet(themeOptions).url}">`
   
   const finishedTime = new Date();
   const timings: RenderTimings = {
@@ -206,6 +211,7 @@ export const renderRequest = async ({req, user, startTime, res, clientId}: {
     redirectUrl: serverRequestStatus.redirectUrl,
     relevantAbTestGroups: abTestGroups,
     allAbTestGroups: getAllUserABTestGroups(user, clientId),
+    themeOptions: themeOptions,
     timings,
   };
 }

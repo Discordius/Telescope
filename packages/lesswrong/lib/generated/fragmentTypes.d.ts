@@ -18,6 +18,7 @@ interface UsersDefaultFragment { // fragment on Users
   readonly slug: string,
   readonly groups: Array<string>,
   readonly lwWikiImport: boolean,
+  readonly theme: string,
 }
 
 interface LWEventsDefaultFragment { // fragment on LWEvents

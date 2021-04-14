@@ -603,6 +603,7 @@ interface DbUser extends DbObject {
   slug: string
   groups: Array<string>
   lwWikiImport: boolean
+  theme: string
   whenConfirmationEmailSent: Date
   legacy: boolean
   commentSorting: string

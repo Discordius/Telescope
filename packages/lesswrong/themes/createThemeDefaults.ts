@@ -1,4 +1,5 @@
 import { createMuiTheme } from '@material-ui/core/styles';
+import { getForumType, ThemeOptions } from './themeNames';
 import grey from '@material-ui/core/colors/grey';
 import deepmerge from 'deepmerge';
 import isPlainObject from 'is-plain-object';
@@ -54,7 +55,13 @@ export const zIndexes = {
   petrovDayLoss: 1000000
 }
 
-const createLWTheme = (theme: ThemeType) => {
+const createLWTheme = (themeOptions: ThemeOptions, theme: ThemeType) => {
+  theme = {
+    ...theme,
+    themeName: themeOptions.name,
+    forumType: getForumType(themeOptions)
+  };
+  
   // Defines sensible typography defaults that can be
   // cleanly overriden
 

@@ -3,6 +3,7 @@ import React, {useState} from 'react';
 import { Link } from '../../lib/reactRouterWrapper';
 import { userCanDo } from '../../lib/vulcan-users/permissions';
 import { userGetDisplayName } from '../../lib/collections/users/helpers';
+import { userHasThemePicker } from '../../lib/betas';
 
 import Paper from '@material-ui/core/Paper';
 import Divider from '@material-ui/core/Divider';
@@ -14,6 +15,7 @@ import PersonIcon from '@material-ui/icons/Person';
 import BookmarksIcon from '@material-ui/icons/Bookmarks';
 import Button from '@material-ui/core/Button';
 import MenuItem from '@material-ui/core/MenuItem';
+import ExtensionIcon from '@material-ui/icons/Extension';
 
 import { postGetPageUrl } from '../../lib/collections/posts/helpers';
 import { useCurrentUser } from '../common/withUser';
@@ -62,7 +64,7 @@ const UsersMenu = ({color="rgba(0, 0, 0, 0.6)", classes}: {
   const currentUser = useCurrentUser();
   const {eventHandlers, hover, anchorEl} = useHover();
   const {openDialog} = useDialog();
-  const { LWPopper, LWTooltip } = Components
+  const { LWPopper, LWTooltip, ThemePickerMenu } = Components
 
   if (!currentUser) return null;
 
@@ -130,6 +132,14 @@ const UsersMenu = ({color="rgba(0, 0, 0, 0.6)", classes}: {
                 User Profile
               </MenuItem>
             </Link>}
+            {userHasThemePicker(currentUser) && <ThemePickerMenu>
+              <MenuItem>
+                <ListItemIcon>
+                  <ExtensionIcon className={classes.icon}/>
+                </ListItemIcon>
+                  Theme
+              </MenuItem>
+            </ThemePickerMenu>}
             <Link to={`/account`}>
               <MenuItem>
                 <ListItemIcon>

@@ -20,7 +20,7 @@ onStartup(() => {
   }
 
   const Main = () => (
-    <AppGenerator apolloClient={apolloClient} abTestGroupsUsed={{}} />
+    <AppGenerator apolloClient={apolloClient} abTestGroupsUsed={{}} themeOptions={(window as any).themeOptions} />
   );
 
   ReactDOM.hydrate(

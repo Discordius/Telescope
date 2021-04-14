@@ -7,10 +7,12 @@ import { CookiesProvider } from 'react-cookie';
 // eslint-disable-next-line no-restricted-imports
 import { BrowserRouter } from 'react-router-dom';
 import { ABTestGroupsUsedContext, RelevantTestGroupAllocation } from '../lib/abTestImpl';
+import type { ThemeOptions } from '../themes/themeNames';
 
-const AppGenerator = ({ apolloClient, abTestGroupsUsed }: {
+const AppGenerator = ({ apolloClient, abTestGroupsUsed, themeOptions }: {
   apolloClient: any,
   abTestGroupsUsed: RelevantTestGroupAllocation,
+  themeOptions: ThemeOptions,
 }) => {
   const App = (
     <ApolloProvider client={apolloClient}>
@@ -23,6 +25,6 @@ const AppGenerator = ({ apolloClient, abTestGroupsUsed }: {
       </CookiesProvider>
     </ApolloProvider>
   );
-  return wrapWithMuiTheme(App);
+  return wrapWithMuiTheme(App, themeOptions);
 };
 export default AppGenerator;
