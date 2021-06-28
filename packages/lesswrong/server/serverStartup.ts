@@ -1,5 +1,7 @@
 import { MongoClient } from 'mongodb';
-import { setDatabaseConnection } from '../lib/mongoCollection';
+//import { Pool } from 'pg';
+import pgPromise from 'pg-promise';
+import { setDatabaseConnection, setPostgresConnection } from '../lib/mongoCollection';
 import { onStartupFunctions, isAnyTest } from '../lib/executionEnvironment';
 import { refreshSettingsCaches } from './loadDatabaseSettings';
 import { getCommandLineArguments } from './commandLine';
@@ -49,6 +51,19 @@ async function serverStartup() {
   } catch(err) {
     // eslint-disable-next-line no-console
     console.error("Failed to connect to mongodb: ", err);
+    process.exit(1);
+    return;
+  }
+  try {
+    //const postgresClient = new Pool({ connectionString: commandLineArguments.postgresUrl });
+    const postgresClient = pgPromise({
+      // Initialization options from http://vitaly-t.github.io/pg-promise/module-pg-promise.html
+    })(commandLineArguments.postgresUrl);
+    
+    setPostgresConnection(postgresClient);
+  } catch(err) {
+    // eslint-disable-next-line no-console
+    console.error("Failed to connect to postgres: ", err);
     process.exit(1);
     return;
   }
