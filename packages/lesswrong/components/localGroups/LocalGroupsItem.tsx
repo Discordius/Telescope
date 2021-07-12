@@ -2,6 +2,7 @@ import React from 'react';
 import { registerComponent, Components } from '../../lib/vulcan-lib';
 import { Link } from '../../lib/reactRouterWrapper';
 import { legacyBreakpoints } from '../../lib/utils/theme';
+import { forumTypeSetting } from '../../lib/instanceSettings';
 
 export const postsItemLikeStyles = (theme: ThemeType): JssStyles => ({
   root: {
@@ -82,15 +83,17 @@ const LocalGroupsItem = ({group, classes}: {
   
   if (!group) { return null }
 
+  const isEAForum = forumTypeSetting.get() === 'EAForum';
+
   return (
     <div className={classes.root}>
       <Link to={"groups/" + group._id}  className={classes.title}>{group.name}</Link>
       <div  className={classes.location}>
         <PostsItemMetaInfo>{ group.location }</PostsItemMetaInfo>
       </div>
-      <div className={classes.links}>
+      {!isEAForum && <div className={classes.links}>
         <GroupLinks document={group} />
-      </div>    
+      </div>}    
     </div>
   )
 }

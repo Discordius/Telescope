@@ -8,11 +8,20 @@ import { useLocation } from '../../lib/routeUtil';
 import { useDialog } from '../common/withDialog'
 import {AnalyticsContext} from "../../lib/analyticsEvents";
 import * as _ from 'underscore';
+import { forumTypeSetting } from '../../lib/instanceSettings';
+import { userIsAdmin } from '../../lib/vulcan-users'
 
 const styles = createStyles((theme: ThemeType): JssStyles => ({
+  link: {
+    display: "block",
+    color: theme.palette.primary.main,
+    "& + &": {
+      marginTop: theme.spacing.unit,
+    },
+  },
   welcomeText: {
-    margin: 12
-  }
+    margin: 12,
+  },
 }))
 
 interface ExternalProps {
@@ -50,6 +59,9 @@ const CommunityHome = ({classes}: {
       componentName: currentUser ? "EventNotificationsDialog" : "LoginPopup",
     });
   }
+
+  const isEAForum = forumTypeSetting.get() === 'EAForum';
+  const isAdmin = userIsAdmin(currentUser);
 
   const render = () => {
     const filters = query?.filters || [];
@@ -89,12 +101,16 @@ const CommunityHome = ({classes}: {
             <SingleColumnSection>
               <SectionTitle title="Welcome to the Community Section"/>
               <Typography variant="body2" className={classes.welcomeText}>
-                On the map above you can find nearby events (blue arrows), local groups (green house icons) and other users who have added themselves to the map (purple person icons)
+                On the map above you can find nearby events (blue arrows)
+                {isEAForum ? ' and ' : ', '}
+                local groups (green house icons)
+                {!isEAForum && 'and other users who have added themselves to the map (purple person icons)'}
               </Typography>
                 <SectionFooter>
+                  {!isEAForum &&
                   <a onClick={openSetPersonalLocationForm}>
                     {currentUser?.mapLocation ? "Edit my location on the map" : "Add me to the map"}
-                  </a>
+                  </a>}
                   <a onClick={openEventNotificationsForm}>
                     {currentUser?.nearbyEventsNotifications ? `Edit my event/groups notification settings` : `Sign up for event/group notifications`} [Beta]
                   </a>
@@ -117,7 +133,7 @@ const CommunityHome = ({classes}: {
             </SingleColumnSection>
             <SingleColumnSection>
               <SectionTitle title="Local Groups">
-                {currentUser && <GroupFormLink />}
+                {currentUser && (!isEAForum || isAdmin) && <GroupFormLink />}
               </SectionTitle>
               { currentUserLocation.loading
                 ? <Components.Loading />
@@ -129,7 +145,12 @@ const CommunityHome = ({classes}: {
             <SingleColumnSection>
               <SectionTitle title="Resources"/>
               <AnalyticsContext listContext={"communityResources"}>
-                <PostsList2 terms={{view: 'communityResourcePosts'}} showLoadMore={false} />
+                {isEAForum ?
+                  <Typography variant="body1">
+                      <a className={classes.link} href="https://eahub.org/groups?utm_source=forum.effectivealtruism.org&utm_medium=Organic&utm_campaign=Forum_Homepage">EA Hub Groups Directory</a>
+                  </Typography> :
+                  <PostsList2 terms={{view: 'communityResourcePosts'}} showLoadMore={false} />
+                }
               </AnalyticsContext>
             </SingleColumnSection>
         </AnalyticsContext>
